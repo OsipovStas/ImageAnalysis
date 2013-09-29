@@ -5,6 +5,30 @@
 #include <cv.h>
 #include <highgui.h>
 
+
+
+bool task3(cv::Mat& img) {
+    cv::Mat topLeft(img, 
+                cv::Range(0, img.rows / 2),
+                cv::Range(0, img.cols / 2));
+    cv::Mat bottomRight(img,
+                    cv::Range(img.rows - topLeft.rows, img.rows),
+                    cv::Range(img.cols - topLeft.cols, img.cols));
+    cv::Mat tmp;
+    topLeft.copyTo(tmp);
+    bottomRight.copyTo(topLeft);
+    tmp.copyTo(bottomRight);
+    return cv::imwrite("swapedLena.jpg", img);
+}
+
+
+bool task2(const char* path) {
+    cv::Mat image = cv::imread(path, 1);
+    cv::Mat leftSide = image.colRange(0, image.cols / 2);
+    cv::Mat bottomSide = image.rowRange(image.rows / 2, image.rows);
+    return cv::imwrite("leftSideLena.jpg", leftSide) && cv::imwrite("bottomSideLena.jpg", bottomSide);
+}
+
 void createHalfTone(const cv::Mat& channel, int chIdx, cv::Mat& out) {
     std::vector<cv::Mat> channels(3, cv::Mat::zeros(channel.size(), CV_8U));
     channels[chIdx] = channel;
