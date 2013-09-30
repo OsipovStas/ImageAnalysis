@@ -101,7 +101,7 @@ bool task7(const cv::Mat& image) {
 int main( int argc, char** argv ) {
     
     if(argc != 2) {
-        std::cerr << "Usage: " << argv[0] << "path/to/lena";
+        std::cerr << "Usage: " << argv[0] << " path/to/lena" << std::endl;
         exit(1);
     }
     
