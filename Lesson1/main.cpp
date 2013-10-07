@@ -287,7 +287,7 @@ void concatChannels(const cv::Mat& src, cv::Mat& dst) {
     std::vector<cv::Mat> channels;
     
     cv::split(src, channels);
-    dst = (channels[0] + channels[1] + channels[2]) / 3;
+    dst = (channels[0] / 3 + channels[1] / 3 + channels[2] / 3);
     
 }
 
