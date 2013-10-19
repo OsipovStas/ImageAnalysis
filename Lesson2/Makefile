@@ -60,6 +60,8 @@ build: .build-post
 .build-post: .build-impl
 # Add your post 'build' code here...
 	@mkdir -p ./build/Debug/gen
+	@mkdir -p ./build/Debug/gen/noize
+
 
 
 # clean
