@@ -452,39 +452,41 @@ bool task3_6(const cv::Mat& orig, const cv::Mat& noize) {
     cv::Mat image, tmp;
     image = noize;
     std::vector<cv::Mat> channels;
-    
+
     cv::matchTemplate(orig, noize, tmp, CV_TM_SQDIFF);
-    std::cout << "Noize RMSE: " << tmp / (orig.rows * orig.cols) << std::endl;
+    std::cout << "Noize RMSE: " << tmp / (orig.rows * orig.cols * orig.channels()) << std::endl;
 
     cv::split(image, channels);
-    for(VMit vmit = channels.begin(); vmit != channels.end(); ++vmit) {
+
+    for (VMit vmit = channels.begin(); vmit != channels.end(); ++vmit) {
         cv::medianBlur(*vmit, *vmit, 5);
     }
     cv::merge(channels, image);
-    cv::GaussianBlur(image, image, cv::Size(5, 5), 1, 50);
+    cv::GaussianBlur(image, image, cv::Size(5, 5), 1, 80);
+
     cv::matchTemplate(image, orig, tmp, CV_TM_SQDIFF);
-    std::cout << "RMSE: " << tmp / (orig.rows * orig.cols) << std::endl;
-    
+    std::cout << "RMSE: " << tmp / (orig.rows * orig.cols * orig.channels()) << std::endl;
+
     image.push_back(orig);
     return cv::imwrite(PATH + "Task3_6.jpg", image);
-//    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
-//    cv::imshow("Lesson 2", image);
-//    cv::waitKey(0);
-//    
-//    orig.copyTo(image);
-//    image.push_back(noize);
-//
-//
-//    cv::split(image, channels);
-//    for(VMit vmit = channels.begin(); vmit != channels.end(); ++vmit) {
-//        cv::medianBlur(*vmit, *vmit, 5);
-//    }
-//    image = channels[0];
-//    concatImages(image, channels[1], image);
-//    concatImages(image, channels[2], image);
-//    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
-//    cv::imshow("Lesson 2", image);
-//    cv::waitKey(0);
+    //    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
+    //    cv::imshow("Lesson 2", image);
+    //    cv::waitKey(0);
+    //    
+    //    orig.copyTo(image);
+    //    image.push_back(noize);
+    //
+    //
+    //    cv::split(image, channels);
+    //    for(VMit vmit = channels.begin(); vmit != channels.end(); ++vmit) {
+    //        cv::medianBlur(*vmit, *vmit, 5);
+    //    }
+    //    image = channels[0];
+    //    concatImages(image, channels[1], image);
+    //    concatImages(image, channels[2], image);
+    //    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
+    //    cv::imshow("Lesson 2", image);
+    //    cv::waitKey(0);
 }
 
 int main(int argc, char** argv) {
