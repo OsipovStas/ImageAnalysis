@@ -24,8 +24,15 @@
 
 typedef std::vector<cv::Mat>::iterator VMit;
 typedef cv::MatIterator_<uchar> Mit;
+typedef cv::MatIterator_<float> Mfit;
+
 
 static const std::string PATH("./build/Debug/gen/");
+static const std::string DIAG("./res/diagonal.jpg");
+static const std::string ORIG("./res/original.tif");
+static const std::string NOIZE("./res/noize.tif");
+static const std::string LENA("./res/lena.tif");
+
 
 static const double task1v[] = {0.5, 0, 1, -125, 2, 0, 2, -255, 1, 125};
 static const int task1c = 5;
@@ -38,6 +45,9 @@ static const int task4c = 3;
 
 static const int task5v[] = {3, 3, 5, 5, 7, 7};
 static const int task5c = 3;
+
+static const int task6v[] = {5, 15, 30, 255, 380};
+static const int task6c = 5;
 
 void scaleImage(const cv::Mat& src, cv::Mat& dst, double alpha, double beta) {
     CV_Assert(src.channels() == 3);
@@ -192,11 +202,11 @@ void filterImage(const cv::Mat& image, cv::Mat& dst) {
         cv::blur(image, filters[0], cv::Size(task5v[2 * i], task5v[2 * i + 1]));
         cv::GaussianBlur(image, filters[1], cv::Size(task5v[2 * i], task5v[2 * i + 1]), 0);
         cv::medianBlur(image, filters[2], task5v[2 * i]);
-        for(VMit vmit = filters.begin(); vmit != filters.end(); ++vmit) {
+        for (VMit vmit = filters.begin(); vmit != filters.end(); ++vmit) {
             result[i].push_back(*vmit);
         }
     }
-    for(VMit vmit = result.begin(); vmit != result.end(); ++vmit) {
+    for (VMit vmit = result.begin(); vmit != result.end(); ++vmit) {
         concatImages(dst, *vmit, dst);
     }
 }
@@ -206,7 +216,7 @@ bool task5(const char* path) {
     DIR *dp;
     bool res = true;
     int i = 1;
-    
+
     dp = opendir(path);
     if (dp == NULL) {
         std::cerr << "opendir: Path does not exist or could not be read." << std::endl;
@@ -231,6 +241,252 @@ bool task5(const char* path) {
     return true;
 }
 
+void rearrangeQuadrants(cv::Mat& image) {
+    // rearrange the quadrants of Fourier image  so that the origin is at the image center
+    int cx = image.cols / 2;
+    int cy = image.rows / 2;
+
+    cv::Mat q0(image, cv::Rect(0, 0, cx, cy)); // Top-Left - Create a ROI per quadrant
+    cv::Mat q1(image, cv::Rect(cx, 0, cx, cy)); // Top-Right
+    cv::Mat q2(image, cv::Rect(0, cy, cx, cy)); // Bottom-Left
+    cv::Mat q3(image, cv::Rect(cx, cy, cx, cy)); // Bottom-Right
+
+    cv::Mat tmp;
+    q0.copyTo(tmp);
+    q3.copyTo(q0);
+    tmp.copyTo(q3);
+
+    q1.copyTo(tmp); // swap quadrant (Top-Right with Bottom-Left)
+    q2.copyTo(q1);
+    tmp.copyTo(q2);
+
+}
+
+void lowPassFilter(cv::Mat& magnitude, int radius) {
+    int cx = magnitude.cols / 2;
+    int cy = magnitude.rows / 2;
+    int curX, curY;
+    int r2 = radius * radius;
+
+    for (int i = 0; i < magnitude.rows; ++i) {
+        curY = cy - i;
+        for (int j = 0; j < magnitude.cols; ++j) {
+            curX = cx - j;
+            if (curY * curY + curX * curX >= r2) {
+                magnitude.at<float>(i, j) = 0.0f;
+            }
+        }
+    }
+}
+
+void highPassFilter(cv::Mat& magnitude, int radius) {
+    int cx = magnitude.cols / 2;
+    int cy = magnitude.rows / 2;
+    int curX, curY;
+    int r2 = radius * radius;
+
+    for (int i = 0; i < magnitude.rows; ++i) {
+        curY = cy - i;
+        for (int j = 0; j < magnitude.cols; ++j) {
+            curX = cx - j;
+            if (curY * curY + curX * curX < r2) {
+                magnitude.at<float>(i, j) = 0.0f;
+            }
+        }
+    }
+}
+
+void visualization(const cv::Mat& magnitude, cv::Mat& res) {
+    res = magnitude + cv::Scalar::all(1); // switch to logarithmic scale
+    cv::log(res, res);
+    rearrangeQuadrants(res);
+    cv::normalize(res, res, 0, 1, CV_MINMAX);
+    res *= 255;
+    res.convertTo(res, CV_8U);
+}
+
+void performLowPass(const cv::Mat& image, cv::Mat& res, int rad) {
+    cv::Mat grey, tmp;
+    cv::cvtColor(image, grey, CV_BGR2GRAY);
+
+
+    grey.convertTo(grey, CV_32F);
+    grey.copyTo(res);
+    res.convertTo(res, CV_8U);
+    std::vector<cv::Mat> planes(2, cv::Mat());
+    std::vector<cv::Mat> polar(2, cv::Mat());
+
+    cv::dft(grey, tmp, cv::DFT_COMPLEX_OUTPUT);
+    cv::split(tmp, planes);
+    cv::cartToPolar(planes[0], planes[1], polar[0], polar[1]);
+    visualization(polar[0], tmp);
+    concatImages(res, tmp, res);
+
+    rearrangeQuadrants(polar[0]);
+    lowPassFilter(polar[0], rad);
+    rearrangeQuadrants(polar[0]);
+
+    visualization(polar[0], tmp);
+    tmp.convertTo(tmp, res.type());
+    concatImages(res, tmp, res);
+
+    cv::polarToCart(polar[0], polar[1], planes[0], planes[1]);
+    cv::merge(planes, tmp);
+    cv::dft(tmp, tmp, cv::DFT_SCALE | cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
+    tmp.convertTo(tmp, CV_8U);
+    concatImages(res, tmp, res);
+}
+
+void performHighPass(const cv::Mat& image, cv::Mat& res, int rad) {
+    cv::Mat grey, tmp;
+    cv::cvtColor(image, grey, CV_BGR2GRAY);
+
+
+    grey.convertTo(grey, CV_32F);
+    grey.copyTo(res);
+    res.convertTo(res, CV_8U);
+    std::vector<cv::Mat> planes(2, cv::Mat());
+    std::vector<cv::Mat> polar(2, cv::Mat());
+
+    cv::dft(grey, tmp, cv::DFT_COMPLEX_OUTPUT);
+    cv::split(tmp, planes);
+    cv::cartToPolar(planes[0], planes[1], polar[0], polar[1]);
+    visualization(polar[0], tmp);
+    concatImages(res, tmp, res);
+
+    rearrangeQuadrants(polar[0]);
+    highPassFilter(polar[0], rad);
+    rearrangeQuadrants(polar[0]);
+
+    visualization(polar[0], tmp);
+    tmp.convertTo(tmp, res.type());
+    concatImages(res, tmp, res);
+
+    cv::polarToCart(polar[0], polar[1], planes[0], planes[1]);
+    cv::merge(planes, tmp);
+    cv::dft(tmp, tmp, cv::DFT_SCALE | cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
+    tmp.convertTo(tmp, CV_8U);
+    concatImages(res, tmp, res);
+}
+
+bool task6(const cv::Mat& image) {
+    int suff = 1;
+    bool res = true;
+
+    for (int i = 0; i < task6c; ++i) {
+        cv::Mat tmp1, tmp2;
+        performLowPass(image, tmp1, task6v[i]);
+        res &= cv::imwrite(PATH + generateName("Task6-", suff++), tmp1);
+        performHighPass(image, tmp2, task6v[i]);
+        res &= cv::imwrite(PATH + generateName("Task6-", suff++), tmp2);
+    }
+    return res;
+}
+
+bool task3_5(const cv::Mat& image, const cv::Mat& orig) {
+    cv::Mat grey, tmp, res;
+    image.copyTo(grey);
+    grey.convertTo(grey, CV_32F);
+
+    grey.copyTo(res);
+    res.convertTo(res, CV_8U);
+    std::vector<cv::Mat> planes(2, cv::Mat());
+    std::vector<cv::Mat> polar(2, cv::Mat());
+
+    cv::dft(grey, tmp, cv::DFT_COMPLEX_OUTPUT);
+    cv::split(tmp, planes);
+    cv::cartToPolar(planes[0], planes[1], polar[0], polar[1]);
+
+    int cx = polar[0].cols / 2;
+    int cy = polar[0].rows / 2;
+    cv::Point max;
+
+    cv::Mat top = polar[0].rowRange(0, cx);
+    cv::Mat bot = polar[0].rowRange(cx, polar[0].rows);
+
+    int row = 0;
+    do {
+        cv::minMaxLoc(top.rowRange(row++, top.rows), 0, 0, 0, &max);
+    } while (max.x == 0);
+
+
+    int r = 3;
+
+    cv::Mat noizeCol = polar[0].colRange(max.x - r, max.x + r);
+    cv::Mat noizeRow = polar[0].rowRange(max.y - r, max.y + r);
+    cv::Mat blurCol = polar[0].colRange(max.x - 12, max.x - 12 + 2 * r);
+    cv::Mat blurRow = polar[0].rowRange(max.y - 3 * r, max.y - r);
+
+    blurCol.copyTo(noizeCol);
+    blurRow.copyTo(noizeRow);
+
+
+    cv::Mat noizeColB = polar[0].colRange(polar[0].cols - max.x - r, polar[0].cols - max.x + r);
+    cv::Mat noizeRowB = polar[0].rowRange(polar[0].rows - max.y - r, polar[0].rows - max.y + r);
+
+    blurCol.copyTo(noizeColB);
+    blurRow.copyTo(noizeRowB);
+
+    visualization(polar[0], tmp);
+
+    cv::polarToCart(polar[0], polar[1], planes[0], planes[1]);
+    cv::merge(planes, tmp);
+    cv::dft(tmp, tmp, cv::DFT_SCALE | cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
+
+    tmp.convertTo(tmp, CV_8U);
+    cv::Mat result;
+    cv::matchTemplate(orig, tmp, result, CV_TM_SQDIFF);
+    std::cout << "RMSE Task 3.5: " << result / (orig.cols * orig.rows) << std::endl;
+
+    concatImages(res, tmp, res);
+    cv::absdiff(tmp, orig, tmp);
+    concatImages(res, tmp, res);
+
+    cv::absdiff(image, orig, tmp);
+    concatImages(res, tmp, res);
+
+    return cv::imwrite(PATH + "Task3_5.jpg", res);
+}
+
+bool task3_6(const cv::Mat& orig, const cv::Mat& noize) {
+    cv::Mat image, tmp;
+    image = noize;
+    std::vector<cv::Mat> channels;
+    
+    cv::matchTemplate(orig, noize, tmp, CV_TM_SQDIFF);
+    std::cout << "Noize RMSE: " << tmp / (orig.rows * orig.cols) << std::endl;
+
+    cv::split(image, channels);
+    for(VMit vmit = channels.begin(); vmit != channels.end(); ++vmit) {
+        cv::medianBlur(*vmit, *vmit, 5);
+    }
+    cv::merge(channels, image);
+    cv::GaussianBlur(image, image, cv::Size(5, 5), 1, 50);
+    cv::matchTemplate(image, orig, tmp, CV_TM_SQDIFF);
+    std::cout << "RMSE: " << tmp / (orig.rows * orig.cols) << std::endl;
+    
+    image.push_back(orig);
+    return cv::imwrite(PATH + "Task3_6.jpg", image);
+//    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
+//    cv::imshow("Lesson 2", image);
+//    cv::waitKey(0);
+//    
+//    orig.copyTo(image);
+//    image.push_back(noize);
+//
+//
+//    cv::split(image, channels);
+//    for(VMit vmit = channels.begin(); vmit != channels.end(); ++vmit) {
+//        cv::medianBlur(*vmit, *vmit, 5);
+//    }
+//    image = channels[0];
+//    concatImages(image, channels[1], image);
+//    concatImages(image, channels[2], image);
+//    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
+//    cv::imshow("Lesson 2", image);
+//    cv::waitKey(0);
+}
+
 int main(int argc, char** argv) {
 
     if (argc != 2) {
@@ -238,20 +494,25 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    cv::Mat image;
+    cv::Mat image, orig, lena, noize, diag;
     image = cv::imread(argv[1], 1);
+    diag = cv::imread(DIAG, CV_LOAD_IMAGE_GRAYSCALE);
+    orig = cv::imread(ORIG, CV_LOAD_IMAGE_GRAYSCALE);
+    lena = cv::imread(LENA, 1);
+    noize = cv::imread(NOIZE, 1);
 
     std::cout << "Task 1 Status: " << (task1(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 2 Status: " << (task2(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 3 Status: " << (task3(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 4 Status: " << (task4(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 5 Status: " << (task5((PATH + "noize/").c_str()) ? "OK" : "Error") << std::endl;
+    std::cout << "Task 6 Status: " << (task6(image) ? "OK" : "Error") << std::endl;
+    std::cout << "Task 3.5 Status: " << (task3_5(diag, orig) ? "OK" : "Error") << std::endl;
+    std::cout << "Task 3.6 Status: " << (task3_6(lena, noize) ? "OK" : "Error") << std::endl;
 
-
-
-    //    cv::namedWindow( "Lesson 2", CV_WINDOW_NORMAL);
-    //    cv::imshow( "Lesson 2", dst);                   
-    //    cv::waitKey(0);    
+    //    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
+    //    cv::imshow("Lesson 2", image);
+    //    cv::waitKey(0);
     return 0;
 
 }
