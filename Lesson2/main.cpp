@@ -125,6 +125,7 @@ bool task2(const cv::Mat& image) {
     cv::equalizeHist(grey, equalized);
     cv::absdiff(normalized, equalized, diff);
     res = cv::Mat();
+    res.push_back(grey);
     res.push_back(normalized);
     res.push_back(equalized);
     res.push_back(diff);
@@ -307,7 +308,7 @@ void highPassFilter(cv::Mat& magnitude, int radius) {
 void visualization(const cv::Mat& magnitude, cv::Mat& res) {
     res = magnitude + cv::Scalar::all(1); // switch to logarithmic scale
     cv::log(res, res);
-    rearrangeQuadrants(res);
+    //rearrangeQuadrants(res);
     cv::normalize(res, res, 0, 1, CV_MINMAX);
     res *= 255;
     res.convertTo(res, CV_8U);
@@ -485,13 +486,51 @@ bool task3_5(const cv::Mat& image, const cv::Mat& orig) {
     blurCol.copyTo(noizeColB);
     blurRow.copyTo(noizeRowB);
 
+    cv::Mat roi = polar[0];
+    cv::Mat mean, stddev, tmp1;
+    roi = roi.colRange(max.x + 20, roi.cols - max.x - 20).rowRange(max.y + 20, roi.cols - max.y - 20);
+    for (int i = 0; i < roi.rows; ++i) {
+        cv::Mat row = roi.row(i);
+        cv::meanStdDev(row, mean, stddev);
+        float m = mean.at<double>(0, 0);
+        float st = stddev.at<double>(0, 0);
+        for (Mfit mfit = row.begin<float>(); mfit != row.end<float>(); ++mfit) {
+            if (*mfit > m + 1.5 * st) {
+                *mfit = 0.5 * m;
+            }
+        }
+    }
     visualization(polar[0], tmp);
+
+    //    
+    //    
+    //    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
+    //    cv::imshow("Lesson 2", tmp);
+    //    cv::waitKey(0);
+
 
     cv::polarToCart(polar[0], polar[1], planes[0], planes[1]);
     cv::merge(planes, tmp);
     cv::dft(tmp, tmp, cv::DFT_SCALE | cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
 
+    cv::Mat lut(1, 256, CV_32F, cv::Scalar(0));
+    for (int i = 0; i < 256; ++i) {
+        lut.at<float>(0, i) = i;
+    }
+    lut /= 255;
+    cv::pow(lut.colRange(90, 230), 1.6, lut.colRange(90, 230));
+    lut *= 255;
+
+    lut.convertTo(lut, CV_8U);
+
     tmp.convertTo(tmp, CV_8U);
+
+    cv::normalize(tmp, tmp, 0, 255, cv::NORM_MINMAX);
+    cv::LUT(tmp, lut, tmp);
+
+    cv::GaussianBlur(tmp, tmp, cv::Size(3, 3), 0);
+    cv::medianBlur(tmp, tmp, 3);
+
     cv::Mat result;
     cv::matchTemplate(orig, tmp, result, CV_TM_SQDIFF);
     std::cout << "RMSE Task 3.5: " << result / (orig.cols * orig.rows) << std::endl;
@@ -502,6 +541,11 @@ bool task3_5(const cv::Mat& image, const cv::Mat& orig) {
 
     cv::absdiff(image, orig, tmp);
     concatImages(res, tmp, res);
+    concatImages(res, orig, res);
+
+//    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
+//    cv::imshow("Lesson 2", res);
+//    cv::waitKey(0);
 
     return cv::imwrite(PATH + "Task3_5.jpg", res);
 }
@@ -561,7 +605,7 @@ int main(int argc, char** argv) {
     lena = cv::imread(LENA, 1);
     noize = cv::imread(NOIZE, 1);
     tool = cv::imread(TOOL, CV_LOAD_IMAGE_GRAYSCALE);
-    
+
     std::cout << "Task 1 Status: " << (task1(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 2 Status: " << (task2(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 3 Status: " << (task3(image) ? "OK" : "Error") << std::endl;
