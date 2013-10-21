@@ -570,7 +570,7 @@ int main(int argc, char** argv) {
     std::cout << "Task 6 Status: " << (task6(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 3.1 Status: " << (task3_1(orig) ? "OK" : "Error") << std::endl;
     std::cout << "Task 3.2 Status: " << (task3_2(orig) ? "OK" : "Error") << std::endl;
-    std::cout << "Task 3.3 Status: " << (task3_3(orig) ? "OK" : "Error") << std::endl;
+    std::cout << "Task 3.3 Status: " << (task3_3(tool) ? "OK" : "Error") << std::endl;
     std::cout << "Task 3.5 Status: " << (task3_5(diag, orig) ? "OK" : "Error") << std::endl;
     std::cout << "Task 3.6 Status: " << (task3_6(lena, noize) ? "OK" : "Error") << std::endl;
 
