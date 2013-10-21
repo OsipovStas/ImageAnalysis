@@ -32,6 +32,8 @@ static const std::string DIAG("./res/diagonal.jpg");
 static const std::string ORIG("./res/original.tif");
 static const std::string NOIZE("./res/noize.tif");
 static const std::string LENA("./res/lena.tif");
+static const std::string TOOL("./res/tool_scene.bmp");
+
 
 
 static const double task1v[] = {0.5, 0, 1, -125, 2, 0, 2, -255, 1, 125};
@@ -48,6 +50,12 @@ static const int task5c = 3;
 
 static const int task6v[] = {5, 15, 30, 255, 380};
 static const int task6c = 5;
+
+static const double task3_2v[] = {2, 4};
+static const int task3_2c = 2;
+
+static const int task3_3v[] = {20, 30, 40, 100};
+static const int task3_3c = 5;
 
 void scaleImage(const cv::Mat& src, cv::Mat& dst, double alpha, double beta) {
     CV_Assert(src.channels() == 3);
@@ -383,6 +391,56 @@ bool task6(const cv::Mat& image) {
     return res;
 }
 
+bool task3_1(const cv::Mat& image) {
+    cv::Mat grey(image);
+    grey.convertTo(grey, CV_32F);
+    grey /= 255;
+    grey += cv::Scalar(1);
+    cv::log(grey, grey);
+    grey *= 255;
+    grey.convertTo(grey, CV_8U);
+    grey.push_back(image);
+    return cv::imwrite(PATH + "Task3_1.jpg", grey);
+}
+
+bool task3_2(const cv::Mat& image) {
+    int suff = 1;
+    bool res = true;
+
+    for (int i = 0; i < task3_2c; ++i) {
+        cv::Mat grey(image);
+        grey.convertTo(grey, CV_32F);
+        grey /= 255;
+        cv::pow(grey, task3_2v[i], grey);
+        grey *= 255;
+        grey.convertTo(grey, CV_8U);
+        grey.push_back(image);
+        res &= cv::imwrite(PATH + generateName("Task3_2-", suff++), grey);
+    }
+    return res;
+}
+
+void threshold(const cv::Mat& src, uchar t, cv::Mat& dst) {
+    cv::Mat lut(1, 256, CV_8U, cv::Scalar(0));
+    lut.colRange(t + 1, lut.cols) = cv::Scalar(255);
+    cv::LUT(src, lut, dst);
+}
+
+bool task3_3(const cv::Mat& image) {
+    int suff = 1;
+    bool r = true;
+    for (int i = 0; i < task3_3c; ++i) {
+        cv::Mat t1, t2, res;
+        threshold(image, task3_3v[i], t1);
+        cv::threshold(image, t2, task3_3v[i], 255, CV_8U);
+        cv::absdiff(t1, t2, res);
+        res.push_back(t1);
+        res.push_back(t2);
+        r &= cv::imwrite(PATH + generateName("Task3_3-", suff++), res);
+    }
+    return r;
+}
+
 bool task3_5(const cv::Mat& image, const cv::Mat& orig) {
     cv::Mat grey, tmp, res;
     image.copyTo(grey);
@@ -496,19 +554,23 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    cv::Mat image, orig, lena, noize, diag;
+    cv::Mat image, orig, lena, noize, diag, tool;
     image = cv::imread(argv[1], 1);
     diag = cv::imread(DIAG, CV_LOAD_IMAGE_GRAYSCALE);
     orig = cv::imread(ORIG, CV_LOAD_IMAGE_GRAYSCALE);
     lena = cv::imread(LENA, 1);
     noize = cv::imread(NOIZE, 1);
-
+    tool = cv::imread(TOOL, CV_LOAD_IMAGE_GRAYSCALE);
+    
     std::cout << "Task 1 Status: " << (task1(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 2 Status: " << (task2(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 3 Status: " << (task3(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 4 Status: " << (task4(image) ? "OK" : "Error") << std::endl;
     std::cout << "Task 5 Status: " << (task5((PATH + "noize/").c_str()) ? "OK" : "Error") << std::endl;
     std::cout << "Task 6 Status: " << (task6(image) ? "OK" : "Error") << std::endl;
+    std::cout << "Task 3.1 Status: " << (task3_1(orig) ? "OK" : "Error") << std::endl;
+    std::cout << "Task 3.2 Status: " << (task3_2(orig) ? "OK" : "Error") << std::endl;
+    std::cout << "Task 3.3 Status: " << (task3_3(orig) ? "OK" : "Error") << std::endl;
     std::cout << "Task 3.5 Status: " << (task3_5(diag, orig) ? "OK" : "Error") << std::endl;
     std::cout << "Task 3.6 Status: " << (task3_6(lena, noize) ? "OK" : "Error") << std::endl;
 
