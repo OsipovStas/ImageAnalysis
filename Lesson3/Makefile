@@ -58,7 +58,7 @@ build: .build-post
 
 .build-post: .build-impl
 # Add your post 'build' code here...
-
+	@mkdir -p ./build/Debug/gen
 
 # clean
 clean: .clean-post
