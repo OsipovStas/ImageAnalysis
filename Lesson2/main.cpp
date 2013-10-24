@@ -392,15 +392,40 @@ bool task6(const cv::Mat& image) {
     return res;
 }
 
+void logTransform(const cv::Mat& image, cv::Mat& dst) {
+    image.convertTo(dst, CV_32F);
+    dst /= 255;
+    dst += cv::Scalar(1);
+    cv::log(dst, dst);
+    dst *= 255;
+    dst.convertTo(dst, CV_8U);
+}
+
+void simpleRetinexTransform(const cv::Mat& image, cv::Mat& dst, double a = 1, double b = 0) {
+    cv::Mat light;
+    cv::GaussianBlur(image, light, cv::Size(25, 25), 5);
+    image.convertTo(dst, CV_32F);
+    dst /= 255;
+    dst += cv::Scalar(1);
+    cv::log(dst, dst);
+    light.convertTo(light, CV_32F);
+    light /= 255;
+    light += cv::Scalar(1);
+    cv::log(light, light);
+    dst -= light;
+    dst *= 255;
+    dst = a * dst - cv::Scalar(b);
+    dst.convertTo(dst, CV_8U);
+    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
+    cv::imshow("Lesson 2", light);
+    cv::waitKey(0);
+}
+
 bool task3_1(const cv::Mat& image) {
-    cv::Mat grey(image);
-    grey.convertTo(grey, CV_32F);
-    grey /= 255;
-    grey += cv::Scalar(1);
-    cv::log(grey, grey);
-    grey *= 255;
-    grey.convertTo(grey, CV_8U);
+    cv::Mat grey, rnx;
+    logTransform(image, grey);
     grey.push_back(image);
+    grey.push_back(rnx);
     return cv::imwrite(PATH + "Task3_1.jpg", grey);
 }
 
@@ -513,24 +538,36 @@ bool task3_5(const cv::Mat& image, const cv::Mat& orig) {
     cv::merge(planes, tmp);
     cv::dft(tmp, tmp, cv::DFT_SCALE | cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
 
+
+
+    tmp.convertTo(tmp, CV_8U);
+
+
+
     cv::Mat lut(1, 256, CV_32F, cv::Scalar(0));
     for (int i = 0; i < 256; ++i) {
         lut.at<float>(0, i) = i;
     }
-    lut /= 255;
-    cv::pow(lut.colRange(90, 230), 1.6, lut.colRange(90, 230));
-    lut *= 255;
 
+    for (int i = 65; i < 200; ++i) {
+        lut.at<float>(0, i) = i - 30;
+    }
+    
+    for (int i = 200; i < 220; ++i) {
+        lut.at<float>(0, i) = i - 20;
+    }
+    
     lut.convertTo(lut, CV_8U);
 
     tmp.convertTo(tmp, CV_8U);
 
     cv::normalize(tmp, tmp, 0, 255, cv::NORM_MINMAX);
+    
     cv::LUT(tmp, lut, tmp);
 
-    cv::GaussianBlur(tmp, tmp, cv::Size(3, 3), 0);
-    cv::medianBlur(tmp, tmp, 3);
 
+    cv::GaussianBlur(tmp, tmp, cv::Size(3, 3), 1);
+    cv::medianBlur(tmp, tmp, 3);
     cv::Mat result;
     cv::matchTemplate(orig, tmp, result, CV_TM_SQDIFF);
     std::cout << "RMSE Task 3.5: " << result / (orig.cols * orig.rows) << std::endl;
@@ -564,31 +601,18 @@ bool task3_6(const cv::Mat& orig, const cv::Mat& noize) {
         cv::medianBlur(*vmit, *vmit, 5);
     }
     cv::merge(channels, image);
-    cv::GaussianBlur(image, image, cv::Size(5, 5), 1, 80);
-
+    cv::bilateralFilter(image, tmp, 25, 25, 25);
+    image = tmp;
+    
     cv::matchTemplate(image, orig, tmp, CV_TM_SQDIFF);
     std::cout << "RMSE: " << tmp / (orig.rows * orig.cols * orig.channels()) << std::endl;
 
     image.push_back(orig);
+//    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
+//    cv::imshow("Lesson 2", image);
+//    cv::waitKey(0);
     return cv::imwrite(PATH + "Task3_6.jpg", image);
-    //    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
-    //    cv::imshow("Lesson 2", image);
-    //    cv::waitKey(0);
-    //    
-    //    orig.copyTo(image);
-    //    image.push_back(noize);
-    //
-    //
-    //    cv::split(image, channels);
-    //    for(VMit vmit = channels.begin(); vmit != channels.end(); ++vmit) {
-    //        cv::medianBlur(*vmit, *vmit, 5);
-    //    }
-    //    image = channels[0];
-    //    concatImages(image, channels[1], image);
-    //    concatImages(image, channels[2], image);
-    //    cv::namedWindow("Lesson 2", CV_WINDOW_NORMAL);
-    //    cv::imshow("Lesson 2", image);
-    //    cv::waitKey(0);
+
 }
 
 int main(int argc, char** argv) {
