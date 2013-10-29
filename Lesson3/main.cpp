@@ -165,8 +165,34 @@ bool coins3() {
     cv::waitKey();
 
     return cv::imwrite(path + "task1_3Coins3.jpg", image);
+=======
+bool task3_3() {
+    cv::Mat image, hor, vert, hat, hat_text, tmp, text, table;
 
+    cv::Mat element(9, 3, CV_8U, cv::Scalar(0));
+    element.col(1) = cv::Scalar(1);
+
+    image = cv::imread(res + "table.jpg", 1);
+    
+    cv::morphologyEx(image, hat, cv::MORPH_DILATE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 1);
+    cv::morphologyEx(hat, hat, cv::MORPH_OPEN, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)), cv::Point(-1, -1), 2);
+    cv::morphologyEx(image, vert, cv::MORPH_CLOSE, element, cv::Point(-1, -1), 2);
+    cv::morphologyEx(image, hor, cv::MORPH_CLOSE, element.t(), cv::Point(-1, -1), 2);
+
+    hat_text = (image - hat);
+    hat = cv::Scalar(255, 255, 255) - hat;
+    vert = (cv::Scalar(255, 255, 255) - vert);
+    hor =  (cv::Scalar(255, 255, 255) - hor);
+    tmp = hor + vert + hat - hat_text;
+    text = image + tmp - hat_text;
+    table = image + (cv::Scalar(255) - text) - hat_text;
+
+    cv::hconcat(image,  table, image);
+    cv::hconcat(image,  text, image);
+
+    return cv::imwrite(path + "Task3_3.jpg", image);
 }
+
 
 bool drawPriority(const Circle& c1, const Circle& c2) {
     int in1 = 0;
