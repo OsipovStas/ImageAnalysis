@@ -35,6 +35,7 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
+	${OBJECTDIR}/_ext/1868121903/circles.o \
 	${OBJECTDIR}/main.o
 
 
@@ -42,8 +43,8 @@ OBJECTFILES= \
 CFLAGS=
 
 # CC Compiler Flags
-CCFLAGS=-m32
-CXXFLAGS=-m32
+CCFLAGS=-m64
+CXXFLAGS=-m64
 
 # Fortran Compiler Flags
 FFLAGS=
@@ -69,6 +70,11 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lesson3: /usr/local/lib/libopencv_obj
 ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lesson3: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
 	${LINK.cc} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lesson3 ${OBJECTFILES} ${LDLIBSOPTIONS}
+
+${OBJECTDIR}/_ext/1868121903/circles.o: /home/stasstels/NetBeansProjects/git/ImageAnalysis/Lesson3/circles.cpp 
+	${MKDIR} -p ${OBJECTDIR}/_ext/1868121903
+	${RM} $@.d
+	$(COMPILE.cc) -Werror -I/usr/local/include/opencv -I/usr/local/include/opencv2 -std=c++98 -MMD -MP -MF $@.d -o ${OBJECTDIR}/_ext/1868121903/circles.o /home/stasstels/NetBeansProjects/git/ImageAnalysis/Lesson3/circles.cpp
 
 ${OBJECTDIR}/main.o: main.cpp 
 	${MKDIR} -p ${OBJECTDIR}
