@@ -36,6 +36,7 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 # Object Files
 OBJECTFILES= \
 	${OBJECTDIR}/_ext/1868121903/circles.o \
+	${OBJECTDIR}/_ext/1868121903/functions.o \
 	${OBJECTDIR}/main.o
 
 
@@ -67,6 +68,11 @@ ${OBJECTDIR}/_ext/1868121903/circles.o: /home/stasstels/NetBeansProjects/git/Ima
 	${MKDIR} -p ${OBJECTDIR}/_ext/1868121903
 	${RM} $@.d
 	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/_ext/1868121903/circles.o /home/stasstels/NetBeansProjects/git/ImageAnalysis/Lesson3/circles.cpp
+
+${OBJECTDIR}/_ext/1868121903/functions.o: /home/stasstels/NetBeansProjects/git/ImageAnalysis/Lesson3/functions.cpp 
+	${MKDIR} -p ${OBJECTDIR}/_ext/1868121903
+	${RM} $@.d
+	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/_ext/1868121903/functions.o /home/stasstels/NetBeansProjects/git/ImageAnalysis/Lesson3/functions.cpp
 
 ${OBJECTDIR}/main.o: main.cpp 
 	${MKDIR} -p ${OBJECTDIR}

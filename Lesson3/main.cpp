@@ -14,14 +14,13 @@
 #include <highgui.h>
 
 #include "circles.hpp"
+#include "functions.hpp"
 
 static const std::string path("./build/Debug/gen/");
 static const std::string res("./res/");
 
-using namespace cv;
-
 const int POSITION_THRESHOLD = 5;
-cv::RNG rng(12345);
+cv::RNG rng(666);
 
 bool cmpX(const cv::Point& p1, const cv::Point& p2) {
     return p1.x < p2.x;
@@ -83,12 +82,14 @@ bool task1_1() {
     /// Draw contours
     cv::Mat drawing = cv::Mat::zeros(canny_output.size(), CV_8UC3);
     for (size_t i = 0; i < contours.size(); i++) {
-        Scalar color = Scalar(rng.uniform(100, 255), rng.uniform(100, 255), rng.uniform(100, 255));
-        drawContours(drawing, contours, (int) i, color, -1, 8, hierarchy, 0, Point());
-        cv::putText(drawing, genNumberString(i + 1), getCircleCenter(contours[i]) + cv::Point(-10, 10), FONT_HERSHEY_SIMPLEX,
+        cv::Scalar color = cv::Scalar(rng.uniform(100, 255), rng.uniform(100, 255), rng.uniform(100, 255));
+        cv::drawContours(drawing, contours, (int) i, color, -1, 8, hierarchy, 0, cv::Point());
+        cv::putText(drawing, genNumberString(i + 1), getCircleCenter(contours[i]) + cv::Point(-10, 10), cv::FONT_HERSHEY_SIMPLEX,
                 0.5, cv::Scalar(0, 0, 0));
     }
-
+    cv::namedWindow("Task1.3", CV_WINDOW_NORMAL);
+    cv::imshow("Task1.3", drawing);
+    cv::waitKey();
     return cv::imwrite(path + "Task1_1.jpg", drawing);
 }
 
@@ -140,30 +141,53 @@ bool coins3() {
     /// Find contours
     cv::findContours(canny_output, contours, cv::noArray(), CV_RETR_EXTERNAL, cv::CHAIN_APPROX_NONE, cv::Point(0, 0));
 
-    VC circles;
+    VC circles, avg_circles;
     std::for_each(contours.begin(), contours.end(), CircleBuilder(50, circles));
-    VCit end = std::remove_if(circles.begin(), circles.end(), rmseFilter(std::min_element(circles.begin(), circles.end()) -> mse));
-    VC avg_circles;
-    std::for_each(circles.begin(), end, circleReducer(5, avg_circles));
+    std::for_each(circles.begin(), circles.end(), CircleMergeReducer(6, 0.8, avg_circles));
+    circles = avg_circles;
+    avg_circles.clear();
+    std::for_each(circles.begin(), circles.end(), CircleMergeReducer(6, 0.9, avg_circles));
+    VCit end = std::remove_if(avg_circles.begin(), avg_circles.end(), rmseFilter((std::min_element(avg_circles.begin(), avg_circles.end()) -> mse) * 5));
 
     /// Draw circles
     cv::Mat drawing = cv::Mat::zeros(canny_output.size(), CV_8UC3);
 
-    for (VCit cit = avg_circles.begin(); cit != avg_circles.end(); ++cit) {
-        Scalar color = Scalar(rng.uniform(100, 255), rng.uniform(100, 255), rng.uniform(100, 255));
+    for (VCit cit = avg_circles.begin(); cit != end; ++cit) {
+        cv::Scalar color = cv::Scalar(rng.uniform(100, 255), rng.uniform(100, 255), rng.uniform(100, 255));
+        cv::circle(drawing, cit -> center, cit -> radius, color, -1);
         cv::circle(drawing, cit -> center, cit -> radius, color, 2);
-        std::cout << cit -> chains -> at(0).size() << " " << cit -> mse << std::endl;
     }
 
-    cv::hconcat(image, image - drawing, image);
     cv::hconcat(image, drawing, image);
 
     cv::namedWindow("Task1.3", CV_WINDOW_NORMAL);
     cv::imshow("Task1.3", image);
     cv::waitKey();
+
+    return cv::imwrite(path + "task1_3Coins3.jpg", image);
+
 }
 
-bool task1_3() {
+bool drawPriority(const Circle& c1, const Circle& c2) {
+    int in1 = 0;
+    for (VPCit vpit = c1.chain -> begin(); vpit != c1.chain -> end(); ++vpit) {
+        if ((cv::norm(c2.center - (*vpit)) - c2.radius) < 3) {
+            ++in1;
+        }
+    }
+    int in2 = 0;
+    for (VPCit vpit = c2.chain -> begin(); vpit != c2.chain -> end(); ++vpit) {
+        if ((cv::norm(c1.center - (*vpit)) - c1.radius) < 5) {
+            ++in2;
+        }
+    }
+    if (in1 == in2) {
+        return c1.center.y > c2.center.y;
+    }
+    return in1 < in2;
+}
+
+bool coins4() {
     int thresh = 90;
     int max_thresh = 255;
     cv::Mat image, gray;
@@ -183,43 +207,54 @@ bool task1_3() {
 
     VC circles, avg_circles;
     std::for_each(contours.begin(), contours.end(), CircleBuilder(50, circles));
-    std::for_each(circles.begin(), circles.end(), circleReducer(10, avg_circles));
-    VCit end = std::remove_if(avg_circles.begin(), avg_circles.end(), rmseFilter((std::min_element(avg_circles.begin(), avg_circles.end()) -> mse)));
+    std::for_each(circles.begin(), circles.end(), CircleMergeReducer(6, 0.8, avg_circles));
+    circles = avg_circles;
+    avg_circles.clear();
+    std::for_each(circles.begin(), circles.end(), CircleMergeReducer(6, 0.8, avg_circles));
+    VCit end = std::remove_if(avg_circles.begin(), avg_circles.end(), rmseFilter((std::min_element(avg_circles.begin(), avg_circles.end()) -> mse) * 10));
 
     /// Draw circles
     cv::Mat drawing = cv::Mat::zeros(canny_output.size(), CV_8UC3);
-    std::sort(avg_circles.begin(), end);
-    for (VCit cit = circles.begin(); cit != circles.end(); ++cit) {
-        if (cit -> chains -> size() > 0 && cit -> mse < 1) {
-            Scalar color = Scalar(rng.uniform(100, 255), rng.uniform(100, 255), rng.uniform(100, 255));
-            cv::circle(drawing, cit -> center, cit -> radius, color, 1);
-            cv::drawContours(drawing, *(cit -> chains), -1, color, 2);
-            std::cout << cit -> chains -> size() << " " << cit -> mse << " " << cit -> radius << std::endl;
-        }
+    std::sort(avg_circles.begin(), end, drawPriority);
+
+    for (VCit cit = avg_circles.begin(); cit != end; ++cit) {
+        cv::Scalar color = cv::Scalar(rng.uniform(100, 255), rng.uniform(100, 255), rng.uniform(100, 255));
+        cv::circle(drawing, cit -> center, cit -> radius, color, -1);
+        cv::circle(drawing, cit -> center, cit -> radius, color, 2);
     }
 
-    cv::hconcat(image, image - drawing, image);
     cv::hconcat(image, drawing, image);
 
     cv::namedWindow("Task1.3", CV_WINDOW_NORMAL);
     cv::imshow("Task1.3", image);
     cv::waitKey();
+
+    return cv::imwrite(path + "task1_3Coins4.jpg", image);
+}
+
+bool task1_3() {
+    return coins3() && coins4();
+}
+
+bool task1_4() {
+    return coins_5_full();
+}
+
+bool task1_5() {
+    return coins_5_1_full() && coins_5_2_full() && coins_5_3_full();
+}
+
+bool task1_6() {
+    return coins_5_all() && coins_5_1_all() && coins_5_2_all() && coins_5_3_all();
 }
 
 int main() {
-    //    std::cout << "Task 1.1 Status: " << (task1_1() ? "OK" : "ERROR") << std::endl;
-    //    std::cout << "Task 1.2 Status: " << (task1_2() ? "OK" : "ERROR") << std::endl;
+    std::cout << "Task 1.1 Status: " << (task1_1() ? "OK" : "ERROR") << std::endl;
+    std::cout << "Task 1.2 Status: " << (task1_2() ? "OK" : "ERROR") << std::endl;
     std::cout << "Task 1.3 Status: " << (task1_3() ? "OK" : "ERROR") << std::endl;
+    std::cout << "Task 1.4 Status: " << (task1_4() ? "OK" : "ERROR") << std::endl;
+    std::cout << "Task 1.5 Status: " << (task1_5() ? "OK" : "ERROR") << std::endl;
+    std::cout << "Task 1.6 Status: " << (task1_6() ? "OK" : "ERROR") << std::endl;
 
+    return 0;
 }
-
-//    cv::Mat lut(1, 256, CV_8U);
-
-
-//for (int i = 0; i < 256; ++i) {
-//    lut.at<uchar>(0, i) = i;
-//}
-//
-//lut.colRange(120, 256) = cv::Scalar(0);
-//
-//cv::LUT(src_gray, lut, src_gray);

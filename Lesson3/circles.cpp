@@ -20,21 +20,14 @@ bool Circle::operator<(const Circle& o) const {
 }
 
 void Circle::calcMSE() {
-    mse = 0;
-
-    for (VVPit vvpit = chains -> begin(); vvpit != chains -> end(); ++vvpit) {
-        float mse_ = 0.0;
-        for (VPit vpit = vvpit -> begin(); vpit != vvpit -> end(); ++vpit) {
-            float err = cv::norm((*vpit) - center) - radius;
-            mse_ += (err * err);
-        }
-        mse_ /= vvpit -> size();
-        mse += mse_;
+    float mse_ = 0.0;
+    for (VPit vpit = chain -> begin(); vpit != chain -> end(); ++vpit) {
+        float err = cv::norm((*vpit) - center) - radius;
+        mse_ += (err * err);
     }
+    CV_Assert(chain -> size() != 0);
 
-    CV_Assert(chains -> size() != 0);
-
-    mse = std::sqrt(mse) / chains -> size();
+    mse = std::sqrt(mse_) / ((chain -> size()) * (chain -> size()));
 }
 
 void getCircle(VPit begin, VPit end, Circle& c) {
@@ -45,8 +38,6 @@ void getCircle(VPit begin, VPit end, Circle& c) {
     for (int i = 0; i < pts.cols; ++i) {
         cv::Mat(*(begin + i)).copyTo(pts.col(i));
     }
-    //    pts /= norm;
-
     cv::Mat left;
     subtractCol(pts.colRange(1, pts.cols), pts.col(0), left);
 
@@ -65,6 +56,6 @@ void getCircle(VPit begin, VPit end, Circle& c) {
     c.center.x = cvRound(origin.at<float>(0, 0));
     c.center.y = cvRound(origin.at<float>(1, 0));
     c.radius = cvRound(std::sqrt(rad.at<float>(0, 0)));
-    c.chains -> push_back(VP(begin, end));
+    c.chain = new VP(begin, end);
     c.calcMSE();
 }
