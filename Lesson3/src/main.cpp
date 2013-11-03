@@ -244,6 +244,7 @@ bool task1_6() {
     return coins_5_all() && coins_5_1_all() && coins_5_2_all() && coins_5_3_all();
 }
 
+
 bool task3_3() {
     cv::Mat image, hor, vert, hat, hat_text, tmp, text, table;
 
@@ -251,7 +252,7 @@ bool task3_3() {
     element.col(1) = cv::Scalar(1);
 
     image = cv::imread(res + "table.jpg", 1);
-    
+
     cv::morphologyEx(image, hat, cv::MORPH_DILATE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)), cv::Point(-1, -1), 1);
     cv::morphologyEx(hat, hat, cv::MORPH_OPEN, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)), cv::Point(-1, -1), 2);
     cv::morphologyEx(image, vert, cv::MORPH_CLOSE, element, cv::Point(-1, -1), 2);
@@ -260,17 +261,45 @@ bool task3_3() {
     hat_text = (image - hat);
     hat = cv::Scalar(255, 255, 255) - hat;
     vert = (cv::Scalar(255, 255, 255) - vert);
-    hor =  (cv::Scalar(255, 255, 255) - hor);
+    hor = (cv::Scalar(255, 255, 255) - hor);
     tmp = hor + vert + hat - hat_text;
     text = image + tmp - hat_text;
     table = image + (cv::Scalar(255) - text) - hat_text;
 
-    cv::hconcat(image,  table, image);
-    cv::hconcat(image,  text, image);
+    cv::hconcat(image, table, image);
+    cv::hconcat(image, text, image);
 
     return cv::imwrite(path + "Task3_3.jpg", image);
 }
 
+bool task3_5() {
+    cv::Mat image, imageInv, result, bigCircles, bigCirclesArea, bigCirclesInv, bigCirclesAreaInv;
+    cv::Mat smallCircles, smallCirclesArea, smallCirclesInv, smallCirclesAreaInv;
+
+    image = cv::imread(res + "circles2.jpg", 1);
+
+    cv::morphologyEx(image, bigCircles, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(30, 30)));
+    cv::morphologyEx(bigCircles, bigCirclesArea, cv::MORPH_OPEN, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(80, 80)), cv::Point(-1, -1), 1);
+    cv::morphologyEx(bigCirclesArea, bigCirclesArea, cv::MORPH_ERODE, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(7, 7)), cv::Point(-1, -1), 1);
+
+    cv::bitwise_not(bigCircles, bigCirclesInv);
+    cv::bitwise_not(bigCirclesArea, bigCirclesAreaInv);
+    cv::bitwise_not(image, imageInv);
+
+    smallCircles = image + bigCirclesAreaInv;
+    cv::bitwise_not(smallCircles, smallCirclesInv);
+    smallCirclesArea = cv::Mat(image.rows, image.cols, CV_8UC3, cv::Scalar(255, 0, 0));
+    result = bigCirclesArea + cv::Scalar(0, 0, 255);
+    result -= bigCirclesArea;
+    result += (smallCirclesArea - bigCirclesAreaInv);
+    result -= imageInv;
+
+    cv::namedWindow("Task3.5", CV_WINDOW_NORMAL);
+    cv::imshow("Task3.5", result);
+    cv::waitKey();
+
+    return cv::imwrite(path + "Task3.5.jpg", result);
+}
 
 int main() {
     std::cout << "Task 1.1 Status: " << (task1_1() ? "OK" : "ERROR") << std::endl;
@@ -279,6 +308,8 @@ int main() {
     std::cout << "Task 1.4 Status: " << (task1_4() ? "OK" : "ERROR") << std::endl;
     std::cout << "Task 1.5 Status: " << (task1_5() ? "OK" : "ERROR") << std::endl;
     std::cout << "Task 1.6 Status: " << (task1_6() ? "OK" : "ERROR") << std::endl;
+    std::cout << "Task 3.3 Status: " << (task3_3() ? "OK" : "ERROR") << std::endl;
+    std::cout << "Task 3.5 Status: " << (task3_5() ? "OK" : "ERROR") << std::endl;
 
     return 0;
 }
