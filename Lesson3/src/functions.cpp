@@ -5,7 +5,7 @@
 #include "circles.hpp"
 
 
-static const std::string path("./build/Debug/gen/");
+static const std::string path("./gen/");
 static const std::string res("./res/");
 
 static cv::RNG rng(666);
@@ -47,7 +47,6 @@ bool printResult(cv::Mat& image, cv::Mat& circleImage, cv::Mat& circleContours, 
 
 bool coins_5_full() {
     int thresh = 100;
-    int max_thresh = 255;
     cv::Mat orig, image, gray, tmp;
 
     orig = cv::imread(res + "coins_5.jpg", 1);
@@ -105,13 +104,12 @@ bool coins_5_full() {
     VCit end = std::partition(reducedCircles.begin(), reducedCircles.end(), FitImagePartitioner(circleImage.rows, circleImage.cols));
     std::for_each(reducedCircles.begin(), end, SizeCounter(sizes, result));
     reducedCircles.erase(end, reducedCircles.end());
-    printResult(image, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.4");
+    return printResult(image, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.4");
 
 }
 
 bool coins_5_all() {
     int thresh = 100;
-    int max_thresh = 255;
     cv::Mat orig, image, gray, tmp;
 
     orig = cv::imread(res + "coins_5.jpg", 1);
@@ -166,12 +164,11 @@ bool coins_5_all() {
     std::vector<int>::iterator begin = std::unique(sizes.begin(), sizes.end(), groupSize);
     sizes.erase(begin, sizes.end());
     std::for_each(reducedCircles.begin(), reducedCircles.end(), SizeCounter(sizes, result));
-    printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.6Image0");
-};
+    return printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.6Image0");
+}
 
 bool coins_5_1_full() {
     int thresh = 60;
-    int max_thresh = 255;
     cv::Mat orig, image, gray, tmp;
 
     orig = cv::imread(res + "coins_5_1.jpg", 1);
@@ -230,12 +227,11 @@ bool coins_5_1_full() {
     reducedCircles.erase(end, reducedCircles.end());
 
     cv::cvtColor(gray, gray, CV_GRAY2BGR);
-    printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.5Image1");
-};
+    return printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.5Image1");
+}
 
 bool coins_5_1_all() {
     int thresh = 60;
-    int max_thresh = 255;
     cv::Mat orig, image, gray, tmp;
 
     orig = cv::imread(res + "coins_5_1.jpg", 1);
@@ -293,13 +289,12 @@ bool coins_5_1_all() {
 
 
     cv::cvtColor(gray, gray, CV_GRAY2BGR);
-    printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.6Image1");
+    return printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.6Image1");
 
-};
+}
 
 bool coins_5_2_full() {
     int thresh = 60;
-    int max_thresh = 255;
     cv::Mat orig, image, gray, tmp;
 
     orig = cv::imread(res + "coins_5_2.jpg", 1);
@@ -360,13 +355,12 @@ bool coins_5_2_full() {
     std::for_each(reducedCircles.begin(), end, SizeCounter(sizes, result));
     reducedCircles.erase(end, reducedCircles.end());
 
-    printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.5Image2");
+    return printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.5Image2");
 
 }
 
 bool coins_5_2_all() {
     int thresh = 60;
-    int max_thresh = 255;
     cv::Mat orig, image, gray, tmp;
 
     orig = cv::imread(res + "coins_5_2.jpg", 1);
@@ -425,12 +419,11 @@ bool coins_5_2_all() {
     std::for_each(reducedCircles.begin(), reducedCircles.end(), SizeCounter(sizes, result));
 
 
-    printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.6Image2");
-};
+    return printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.6Image2");
+}
 
 bool coins_5_3_full() {
     int thresh = 60;
-    int max_thresh = 255;
     cv::Mat orig, image, gray, tmp;
 
     orig = cv::imread(res + "coins_5_3.jpg", 1);
@@ -493,14 +486,13 @@ bool coins_5_3_full() {
     reducedCircles.erase(end, reducedCircles.end());
 
 
-    printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.5Image3");
+    return printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.5Image3");
 
 }
 
 bool coins_5_3_all() {
 
     int thresh = 60;
-    int max_thresh = 255;
     cv::Mat orig, image, gray, tmp;
 
     orig = cv::imread(res + "coins_5_3.jpg", 1);
@@ -560,5 +552,5 @@ bool coins_5_3_all() {
     std::for_each(reducedCircles.begin(), reducedCircles.end(), SizeCounter(sizes, result));
 
 
-    printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.6Image3");
-};
+    return printResult(orig, circleImage, detectedContours, contourImage, reducedCircles, result, "Task1.6Image3");
+}

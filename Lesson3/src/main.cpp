@@ -16,7 +16,7 @@
 #include "circles.hpp"
 #include "functions.hpp"
 
-static const std::string path("./build/Debug/gen/");
+static const std::string path("./gen/");
 static const std::string res("./res/");
 
 const int POSITION_THRESHOLD = 5;
@@ -62,7 +62,6 @@ cv::Point getCircleCenter(const std::vector<cv::Point>& circleContour) {
 
 bool task1_1() {
     int thresh = 100;
-    int max_thresh = 255;
     cv::Mat image, gray;
 
     image = cv::imread(res + "coins_1.jpg", 1);
@@ -126,7 +125,6 @@ bool task1_2() {
 
 bool coins3() {
     int thresh = 100;
-    int max_thresh = 255;
     cv::Mat image, gray;
 
     image = cv::imread(res + "coins_3.jpg", 1);
@@ -188,7 +186,6 @@ bool drawPriority(const Circle& c1, const Circle& c2) {
 
 bool coins4() {
     int thresh = 90;
-    int max_thresh = 255;
     cv::Mat image, gray;
 
     image = cv::imread(res + "coins_4.jpg", 1);

@@ -74,7 +74,7 @@ public:
         }
     }
 private:
-    int minSize;
+    size_t minSize;
     VC& circles;
 
 };
