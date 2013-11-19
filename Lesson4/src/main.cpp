@@ -12,6 +12,8 @@
 #include <fstream>
 #include <boost/filesystem.hpp>
 #include <boost/bind.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 #include <cv.h>
 #include <highgui.h>
@@ -24,6 +26,7 @@ using namespace boost::filesystem;
 
 const std::string PATTERN("./res/Corel/TN_28008.JPG");
 const std::string COREL("./res/Corel");
+const std::string BRODATZ("./res/brodatz");
 
 enum Metric {
     L1 = 1,
@@ -108,7 +111,11 @@ bool task1() {
     return true;
 }
 
-using namespace std;
+static const int kernel_size = 21;
+static const int pos_sigma = 5;
+static const int pos_lm = 50;
+static const int pos_th = 0;
+static const int pos_psi = 90;
 
 cv::Mat getKernel(int ks, double sig, double th, double lm, double ps) {
     int hks = (ks - 1) / 2;
@@ -122,48 +129,34 @@ cv::Mat getKernel(int ks, double sig, double th, double lm, double ps) {
     cv::Mat kernel(ks, ks, CV_32F);
     for (int y = -hks; y <= hks; y++) {
         for (int x = -hks; x <= hks; x++) {
-            x_theta = x * del * cos(theta) + y * del * sin(theta);
-            y_theta = -x * del * sin(theta) + y * del * cos(theta);
-            kernel.at<float>(hks + y, hks + x) = (float) exp(-0.5 * (pow(x_theta, 2) + pow(y_theta, 2)) / pow(sigma, 2)) * cos(2 * CV_PI * x_theta / lmbd + psi);
+            x_theta = x * del * std::cos(theta) + y * del * std::sin(theta);
+            y_theta = -x * del * std::sin(theta) + y * del * std::cos(theta);
+            kernel.at<float>(hks + y, hks + x) = (float) std::exp(-0.5 * (std::pow(x_theta, 2) + std::pow(y_theta, 2)) / std::pow(sigma, 2)) * std::cos(2 * CV_PI * x_theta / lmbd + psi);
         }
     }
     return kernel;
 }
 
-int kernel_size = 21;
-int pos_sigma = 5;
-int pos_lm = 50;
-int pos_th = 0;
-int pos_psi = 90;
-cv::Mat src;
-cv::Mat dest;
-
-void Process(int, void *) {
-    double sig = pos_sigma;
-    double lm = 0.5 + pos_lm / 100.0;
-    double th = pos_th;
-    double ps = pos_psi;
-    cv::Mat kernel = getKernel(kernel_size, sig, th, lm, ps);
-    cv::filter2D(src, dest, CV_32F, kernel);
-    cv::imshow("Process window", dest);
-    cv::Mat kernel_scaled(kernel_size * 20, kernel_size * 20, CV_32F);
-    cv::resize(kernel, kernel_scaled, kernel_scaled.size());
-    kernel_scaled /= 2.;
-    kernel_scaled += 0.5;
-    cv::imshow("Gabor kernel", kernel_scaled);
-    cv::Mat mag;
-    cv::pow(dest, 2.0, mag);
-    cv::imshow("Magnitude", mag);
-}
-
-void addFeatures(const cv::Mat& image, const cv::Mat& kernel, std::vector<double>& features) {
-    cv::Mat dest;
-    std::vector<double> mean, stddev;
-    cv::filter2D(image, dest, CV_32F, kernel);
-    cv::meanStdDev(dest, mean, stddev);
-    features.push_back(mean.front());
-    features.push_back(stddev.front());
-}
+//cv::Mat src;
+//cv::Mat dest;
+//
+//void Process(int, void *) {
+//    double sig = pos_sigma;
+//    double lm = 0.5 + pos_lm / 100.0;
+//    double th = pos_th;
+//    double ps = pos_psi;
+//    cv::Mat kernel = getKernel(kernel_size, sig, th, lm, ps);
+//    cv::filter2D(src, dest, CV_32F, kernel);
+//    cv::imshow("Process window", dest);
+//    cv::Mat kernel_scaled(kernel_size * 20, kernel_size * 20, CV_32F);
+//    cv::resize(kernel, kernel_scaled, kernel_scaled.size());
+//    kernel_scaled /= 2.;
+//    kernel_scaled += 0.5;
+//    cv::imshow("Gabor kernel", kernel_scaled);
+//    cv::Mat mag;
+//    cv::pow(dest, 2.0, mag);
+//    cv::imshow("Magnitude", mag);
+//}
 
 struct ImagePair {
     path image1;
@@ -172,6 +165,14 @@ struct ImagePair {
 
     ImagePair(const path& image1, const path& image2) : image1(image1), image2(image2), dist(0) {
         evalDistance();
+    }
+
+    bool operator<(const ImagePair& o) const {
+        return dist < o.dist;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const ImagePair& ip) {
+        return os << ip.image1 << " " << ip.image2 << " " << ip.dist;
     }
 
     static std::vector<cv::Mat> kernels;
@@ -191,57 +192,70 @@ struct ImagePair {
 
     }
 private:
+    typedef boost::shared_ptr<std::vector<float> > vPtr;
 
-    static void process(path p, std::vector<double>& features) {
+    static void addFeatures(const cv::Mat& image, const cv::Mat& kernel, vPtr features) {
+        cv::Mat dest;
+        std::vector<double> mean, stddev;
+
+        cv::filter2D(image, dest, CV_32F, kernel);
+        cv::meanStdDev(dest, mean, stddev);
+
+        features -> push_back(mean.front());
+        features -> push_back(stddev.front());
+    }
+
+    static void process(path p, vPtr features) {
         cv::Mat image = cv::imread(p.c_str(), CV_LOAD_IMAGE_GRAYSCALE);
         image.convertTo(image, CV_32F, 1.0 / 255, 0);
-        std::for_each(kernels.begin(), kernels.end(), boost::bind(addFeatures, image, _1, features));
+        std::for_each(kernels.begin(), kernels.end(),
+                boost::bind(addFeatures, image, _1, features));
     }
 
     void evalDistance() {
-        std::vector<double> features1, features2, result;
-        process(image1, features1);
-        process(image2, features2);
-        cv::matchTemplate(features1, features2, result, CV_TM_SQDIFF_NORMED);
+        std::vector<float> result;
+        vPtr f1(new std::vector<float>());
+        vPtr f2(new std::vector<float>());
+        process(image1, f1);
+        process(image2, f2);
+        std::cout << f1 -> size() << " " << f2 -> size() << std::endl;
+        cv::matchTemplate(*f1, *f2, result, CV_TM_SQDIFF_NORMED);
         dist = result.front();
     }
 
 };
 
-int main(int argc, char** argv) {
-    cv::Mat img = cv::imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
-    cv::namedWindow("Source image", 1);
-    cv::imshow("Source image", img);
-    cv::waitKey(0);
-    //    // convert to grayscale
-    //    cv::Mat img_gray;
-    //    cv::cvtColor(img, img_gray, CV_BGR2GRAY);
-    img.convertTo(src, CV_32F, 1.0 / 255, 0);
-    //
-    if (!kernel_size % 2) {
-        kernel_size += 1;
+std::vector<cv::Mat> ImagePair::kernels;
+
+bool task2() {
+    typedef std::vector<directory_entry>::iterator VDIt;
+
+    ImagePair::generateKernels(3, 9);
+    path brodatz(BRODATZ.c_str());
+    std::vector<directory_entry> images;
+    std::vector<ImagePair> pairs;
+    std::ofstream ofBr("gen/task2_brodatz.txt", std::ofstream::out);
+
+    std::copy(directory_iterator(brodatz), directory_iterator(), // directory_iterator::value_type
+            std::back_insert_iterator<std::vector<directory_entry> >(images));
+    for (VDIt it1 = images.begin(); it1 != images.end(); ++it1) {
+        for (VDIt it2 = it1 + 1; it2 != images.end(); ++it2) {
+            pairs.push_back(ImagePair(it1 -> path(), it2 -> path()));
+        }
     }
-    //
-    cv::namedWindow("Process window", 1);
-    cv::createTrackbar("Sigma", "Process window", &pos_sigma, kernel_size, Process);
-    cv::createTrackbar("Lambda", "Process window", &pos_lm, 100, Process);
-    cv::createTrackbar("Theta", "Process window", &pos_th, 180, Process);
-    cv::createTrackbar("Psi", "Process window", &pos_psi, 360, Process);
-    Process(0, 0);
-    cv::waitKey(0);
-    return 0;
+    std::sort(pairs.begin(), pairs.end());
+
+    std::copy(pairs.begin(), pairs.end(), // directory_iterator::value_type
+            std::ostream_iterator<ImagePair>(ofBr, "\n"));
+
+    return true;
 }
 
+int main(int argc, const char** argv) {
+    //    std::cout << "Task 1 Status: " << (task1() ? "OK" : "Error") << std::endl;
+    std::cout << "Task 2 Status: " << (task2() ? "OK" : "Error") << std::endl;
 
-
-///*
-// * 
-// */
-//
-//int main(int argc, const char** argv) {
-//    std::cout << "Task 1 Status: " << (task1() ? "OK" : "Error") << std::endl;
-//
-//    return 0;
-//}
+    return 0;
+}
 
 
