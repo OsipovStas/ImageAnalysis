@@ -1,0 +1,15 @@
+"./res/brodatz/lena (copy).jpg" "./res/brodatz/lena.jpg" 0
+"./res/brodatz/D36 (copy).jpg" "./res/brodatz/D36.jpg" 5.69446e-08
+"./res/brodatz/D20.jpg" "./res/brodatz/D20 (copy).jpg" 8.47202e-08
+"./res/brodatz/D36 (copy).jpg" "./res/brodatz/D20.jpg" 0.0110195
+"./res/brodatz/D36 (copy).jpg" "./res/brodatz/D20 (copy).jpg" 0.0110195
+"./res/brodatz/D20.jpg" "./res/brodatz/D36.jpg" 0.0110195
+"./res/brodatz/D36.jpg" "./res/brodatz/D20 (copy).jpg" 0.0110195
+"./res/brodatz/D36 (copy).jpg" "./res/brodatz/lena (copy).jpg" 1
+"./res/brodatz/D36 (copy).jpg" "./res/brodatz/lena.jpg" 1
+"./res/brodatz/lena (copy).jpg" "./res/brodatz/D20.jpg" 1
+"./res/brodatz/lena (copy).jpg" "./res/brodatz/D36.jpg" 1
+"./res/brodatz/lena (copy).jpg" "./res/brodatz/D20 (copy).jpg" 1
+"./res/brodatz/D20.jpg" "./res/brodatz/lena.jpg" 1
+"./res/brodatz/D36.jpg" "./res/brodatz/lena.jpg" 1
+"./res/brodatz/lena.jpg" "./res/brodatz/D20 (copy).jpg" 1

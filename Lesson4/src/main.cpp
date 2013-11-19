@@ -88,6 +88,13 @@ bool compare(const directory_entry& d1, const directory_entry& d2, const path& p
     return compareHist(d1.path(), pattern, metric, bins) < compareHist(d2.path(), pattern, metric, bins);
 }
 
+void showTask1(const directory_entry& de) {
+    cv::Mat image = cv::imread(de.path().c_str(), 1);
+    cv::namedWindow("Task1", CV_WINDOW_NORMAL);
+    cv::imshow("Task1", image);
+    cv::waitKey();
+}
+
 bool task1() {
     path pattern(PATTERN.c_str());
     path corel(COREL.c_str());
@@ -103,10 +110,15 @@ bool task1() {
     std::copy(images.begin(), images.end(), // directory_iterator::value_type
             std::ostream_iterator<directory_entry>(ofL1, "\n"));
 
+    std::for_each(images.begin(), images.begin() + 10, showTask1);
+
     std::sort(images.begin(), images.end(), boost::bind(compare, _1, _2, pattern, ChiSquare, bins));
 
     std::copy(images.begin(), images.end(), // directory_iterator::value_type
             std::ostream_iterator<directory_entry>(ofChi, "\n"));
+
+    std::for_each(images.begin(), images.begin() + 10, showTask1);
+
 
     return true;
 }
@@ -164,7 +176,6 @@ struct ImagePair {
     double dist;
 
     ImagePair(const path& image1, const path& image2) : image1(image1), image2(image2), dist(0) {
-        evalDistance();
     }
 
     bool operator<(const ImagePair& o) const {
@@ -173,6 +184,17 @@ struct ImagePair {
 
     friend std::ostream& operator<<(std::ostream& os, const ImagePair& ip) {
         return os << ip.image1 << " " << ip.image2 << " " << ip.dist;
+    }
+
+    void evalDistance() {
+        std::vector<float> result;
+        vPtr f1(new std::vector<float>());
+        vPtr f2(new std::vector<float>());
+        process(image1, f1);
+        process(image2, f2);
+        std::cout << f1 -> size() << " " << f2 -> size() << std::endl;
+        cv::matchTemplate(*f1, *f2, result, CV_TM_SQDIFF_NORMED);
+        dist = result.front();
     }
 
     static std::vector<cv::Mat> kernels;
@@ -212,16 +234,7 @@ private:
                 boost::bind(addFeatures, image, _1, features));
     }
 
-    void evalDistance() {
-        std::vector<float> result;
-        vPtr f1(new std::vector<float>());
-        vPtr f2(new std::vector<float>());
-        process(image1, f1);
-        process(image2, f2);
-        std::cout << f1 -> size() << " " << f2 -> size() << std::endl;
-        cv::matchTemplate(*f1, *f2, result, CV_TM_SQDIFF_NORMED);
-        dist = result.front();
-    }
+
 
 };
 
@@ -243,11 +256,17 @@ bool task2() {
             pairs.push_back(ImagePair(it1 -> path(), it2 -> path()));
         }
     }
+#pragma omp parallel for
+    for (size_t i = 0; i < pairs.size(); ++i) {
+        pairs[i].evalDistance();
+    }
+
     std::sort(pairs.begin(), pairs.end());
 
     std::copy(pairs.begin(), pairs.end(), // directory_iterator::value_type
             std::ostream_iterator<ImagePair>(ofBr, "\n"));
 
+    std::cout << pairs.size() << std::endl;
     return true;
 }
 

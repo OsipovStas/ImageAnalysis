@@ -62,7 +62,7 @@ MY_CFLAGS = `pkg-config --cflags opencv`
 MY_LIBS   = `pkg-config --libs opencv` -lboost_system -lboost_filesystem 
 
 # The pre-processor options used by the cpp (man cpp for more).
-CPPFLAGS  = -std=c++98 -Werror -pedantic -Wall
+CPPFLAGS  = -std=c++98 -Werror -pedantic -Wall -fopenmp
 
 # The options used in linking as well as in any direct use of ld.
 LDFLAGS   = 
