@@ -60,7 +60,7 @@ double compareHistL1(const path& d1, const path& d2, const int* bins) {
 }
 
 double compareHistChiSquare(const path& d1, const path& d2, const int* bins) {
-    cv::Mat image1, image2, hist1, hist2;
+    cv::Mat image1, image2, hist1, hist2, diff;
     image1 = cv::imread(d1.c_str(), 1);
     image2 = cv::imread(d2.c_str(), 1);
 
@@ -69,8 +69,10 @@ double compareHistChiSquare(const path& d1, const path& d2, const int* bins) {
 
     calcHistHSV(image1, bins, hist1);
     calcHistHSV(image2, bins, hist2);
+    cv::absdiff(hist1, hist2, diff);
+    diff.mul(diff);
 
-    return cv::compareHist(hist2, hist1, CV_COMP_HELLINGER);
+    return cv::sum(diff / (hist1 + hist2))[0];
 }
 
 double compareHist(const path& d1, const path& d2, Metric metric, const int* bins) {
@@ -99,7 +101,7 @@ bool task1() {
     path pattern(PATTERN.c_str());
     path corel(COREL.c_str());
     std::vector<directory_entry> images;
-    int bins[] = {42, 45, 15};
+    int bins[] = {21, 9, 13};
     std::ofstream ofL1("gen/task1_l1.txt", std::ofstream::out);
     std::ofstream ofChi("gen/task1_chi.txt", std::ofstream::out);
 
@@ -110,14 +112,14 @@ bool task1() {
     std::copy(images.begin(), images.end(), // directory_iterator::value_type
             std::ostream_iterator<directory_entry>(ofL1, "\n"));
 
-    std::for_each(images.begin(), images.begin() + 10, showTask1);
+    //    std::for_each(images.begin(), images.begin() + 15, showTask1);
 
     std::sort(images.begin(), images.end(), boost::bind(compare, _1, _2, pattern, ChiSquare, bins));
 
     std::copy(images.begin(), images.end(), // directory_iterator::value_type
             std::ostream_iterator<directory_entry>(ofChi, "\n"));
 
-    std::for_each(images.begin(), images.begin() + 10, showTask1);
+    //    std::for_each(images.begin(), images.begin() + 15, showTask1);
 
 
     return true;
@@ -149,27 +151,6 @@ cv::Mat getKernel(int ks, double sig, double th, double lm, double ps) {
     return kernel;
 }
 
-//cv::Mat src;
-//cv::Mat dest;
-//
-//void Process(int, void *) {
-//    double sig = pos_sigma;
-//    double lm = 0.5 + pos_lm / 100.0;
-//    double th = pos_th;
-//    double ps = pos_psi;
-//    cv::Mat kernel = getKernel(kernel_size, sig, th, lm, ps);
-//    cv::filter2D(src, dest, CV_32F, kernel);
-//    cv::imshow("Process window", dest);
-//    cv::Mat kernel_scaled(kernel_size * 20, kernel_size * 20, CV_32F);
-//    cv::resize(kernel, kernel_scaled, kernel_scaled.size());
-//    kernel_scaled /= 2.;
-//    kernel_scaled += 0.5;
-//    cv::imshow("Gabor kernel", kernel_scaled);
-//    cv::Mat mag;
-//    cv::pow(dest, 2.0, mag);
-//    cv::imshow("Magnitude", mag);
-//}
-
 struct ImagePair {
     path image1;
     path image2;
@@ -192,22 +173,27 @@ struct ImagePair {
         vPtr f2(new std::vector<float>());
         process(image1, f1);
         process(image2, f2);
-        std::cout << f1 -> size() << " " << f2 -> size() << std::endl;
         cv::matchTemplate(*f1, *f2, result, CV_TM_SQDIFF_NORMED);
         dist = result.front();
     }
 
+    void evalHistDistance() {
+        vPtr f(new std::vector<float>());
+        processHist(image1, image2, f);
+        dist = cv::norm(*f, cv::NORM_L2);
+    }
+
     static std::vector<cv::Mat> kernels;
 
-    static void generateKernels(int numScales, int numAngles, float minSigma = 2, float maxSigma = 5, float minAngle = 0, float maxAngle = 180) {
+    static void generateKernels(int numScales, int numAngles, float minSigma = 2, float maxSigma = 6, float minAngle = 0, float maxAngle = 180) {
         float angleDiff = (maxAngle - minAngle) / numAngles;
         float scaleDiff = (maxSigma - minSigma) / numScales;
         double lm = 0.5 + pos_lm / 100.0;
         double ps = pos_psi;
 
         kernels.clear();
-        for (float s = minSigma; s < maxSigma; s += scaleDiff) {
-            for (float a = minAngle; a < maxAngle; a += angleDiff) {
+        for (float s = minSigma; s < maxSigma + 1; s += scaleDiff) {
+            for (float a = minAngle; a < maxAngle + 1; a += angleDiff) {
                 kernels.push_back(getKernel(kernel_size, s, a, lm, ps));
             }
         }
@@ -215,6 +201,7 @@ struct ImagePair {
     }
 private:
     typedef boost::shared_ptr<std::vector<float> > vPtr;
+    typedef boost::shared_ptr<std::vector<cv::Mat> > vHPtr;
 
     static void addFeatures(const cv::Mat& image, const cv::Mat& kernel, vPtr features) {
         cv::Mat dest;
@@ -225,6 +212,29 @@ private:
 
         features -> push_back(mean.front());
         features -> push_back(stddev.front());
+    }
+
+    static void addHistFeatures(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat& kernel, vPtr features) {
+        cv::Mat g1, g2, h1, h2;
+        cv::filter2D(image1, g1, CV_32F, kernel);
+        cv::filter2D(image2, g2, CV_32F, kernel);
+        float r[] = {0, 1};
+        const float* ranges[] = {r};
+        int channels[] = {0};
+        int sizes[] = {18};
+        cv::calcHist(&g1, 1, channels, cv::Mat(), h1, 1, sizes, ranges, true, false);
+        cv::calcHist(&g2, 1, channels, cv::Mat(), h2, 1, sizes, ranges, true, false);
+        features -> push_back(cv::compareHist(h1, h2, CV_COMP_HELLINGER));
+    }
+
+    static void processHist(path p1, path p2, vPtr features) {
+        cv::Mat image1 = cv::imread(p1.c_str(), CV_LOAD_IMAGE_GRAYSCALE);
+        cv::Mat image2 = cv::imread(p2.c_str(), CV_LOAD_IMAGE_GRAYSCALE);
+
+        image1.convertTo(image1, CV_32F, 1.0 / 255, 0);
+        image2.convertTo(image2, CV_32F, 1.0 / 255, 0);
+
+        std::for_each(kernels.begin(), kernels.end(), boost::bind(addHistFeatures, image1, image2, _1, features));
     }
 
     static void process(path p, vPtr features) {
@@ -240,10 +250,20 @@ private:
 
 std::vector<cv::Mat> ImagePair::kernels;
 
+void showTask2(const ImagePair& ip) {
+    cv::Mat image1 = cv::imread(ip.image1.c_str(), CV_LOAD_IMAGE_GRAYSCALE);
+    cv::Mat image2 = cv::imread(ip.image2.c_str(), CV_LOAD_IMAGE_GRAYSCALE);
+    cv::hconcat(image1, image2, image1);
+
+    cv::namedWindow("Task2", CV_WINDOW_NORMAL);
+    cv::imshow("Task2", image1);
+    cv::waitKey();
+}
+
 bool task2() {
     typedef std::vector<directory_entry>::iterator VDIt;
 
-    ImagePair::generateKernels(3, 9);
+    ImagePair::generateKernels(3, 7);
     path brodatz(BRODATZ.c_str());
     std::vector<directory_entry> images;
     std::vector<ImagePair> pairs;
@@ -258,7 +278,8 @@ bool task2() {
     }
 #pragma omp parallel for
     for (size_t i = 0; i < pairs.size(); ++i) {
-        pairs[i].evalDistance();
+        std::cout << i << std::endl;
+        pairs[i].evalHistDistance();
     }
 
     std::sort(pairs.begin(), pairs.end());
@@ -266,12 +287,12 @@ bool task2() {
     std::copy(pairs.begin(), pairs.end(), // directory_iterator::value_type
             std::ostream_iterator<ImagePair>(ofBr, "\n"));
 
-    std::cout << pairs.size() << std::endl;
+//    std::for_each(pairs.begin(), pairs.begin() + 30, showTask2);
     return true;
 }
 
 int main(int argc, const char** argv) {
-    //    std::cout << "Task 1 Status: " << (task1() ? "OK" : "Error") << std::endl;
+    std::cout << "Task 1 Status: " << (task1() ? "OK" : "Error") << std::endl;
     std::cout << "Task 2 Status: " << (task2() ? "OK" : "Error") << std::endl;
 
     return 0;
